@@ -1,27 +1,14 @@
 {
   "name": "sydneys-fusion-fitness",
-  "version": "1.0.0",
-  "description": "Auto-book fitness classes at Fusion Fitness / Sweat Lab",
-  "module": "src/main.ts",
-  "type": "module",
+  "version": "2.0.0",
+  "description": "Auto-book fitness classes at Fusion Fitness / Sweat Lab (Vercel Serverless)",
   "private": true,
   "scripts": {
-    "start": "bun run src/main.ts",
-    "dev": "bun --watch run src/main.ts",
-    "test:booking": "bun run src/test-booking.ts",
+    "dev": "echo 'Run: bunx vercel dev'",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@types/bun": "latest",
+    "@types/node": "^25.0.3",
     "typescript": "^5.9.3"
-  },
-  "dependencies": {
-    "@nestjs/common": "^11.1.10",
-    "@nestjs/config": "^4.0.2",
-    "@nestjs/core": "^11.1.10",
-    "@nestjs/platform-express": "^11.1.10",
-    "@nestjs/schedule": "^6.1.0",
-    "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2"
   }
 }

@@ -3,50 +3,88 @@
 Automatically books Sydney's preferred spots at Fusion Fitness / Sweat Lab classes.
 
 ## Tech Stack
-- **Runtime:** Bun
-- **Framework:** NestJS
+- **Platform:** Vercel Serverless Functions
+- **Language:** TypeScript
 - **API:** Marianatek (Fusion Fitness booking platform)
 
-## Booking Workflow
+## How It Works
 
-The app books classes **14 days in advance** using a two-stage approach:
+Vercel Cron triggers `/api/book` at **12:00 PM and 12:01 PM CST** daily.
 
-### 12:00 PM CST - Pre-flight
-1. Warm up auth token
-2. Find target class for 14 days out
-3. Locate best available spot from preferred list
-4. **Attempt immediate booking** (in case booking opens at 12:00 PM)
+The function:
+1. Calculates target date (14 days out)
+2. Finds scheduled class for that day of week
+3. Authenticates with Marianatek (OAuth refresh token)
+4. Fetches available classes
+5. Matches class by type + time
+6. Books best available spot from preferred list
+7. Falls back to waitlist if no preferred spots available
 
-### 12:01 PM CST - Retry
-1. If 12:00 PM booking succeeded, skip
-2. Otherwise, use cached class/spot data for fast booking
-3. Fall back to full booking flow if spot was taken
+## Cron Schedule
+
+Configured in `vercel.json`:
+- `0 18 * * *` (18:00 UTC = 12:00 PM CST)
+- `1 18 * * *` (18:01 UTC = 12:01 PM CST)
+
+**Note:** During daylight saving time (CDT), 12:00 PM = 17:00 UTC. Adjust cron if needed.
 
 ## Schedule Configuration
 
 **File:** `config/schedule.json`
 
-Defines which classes to book by day of week:
-- `dayOfWeek`: 0=Sunday, 1=Monday, ..., 6=Saturday
-- `time`: Class start time (24h format, e.g., "05:30")
-- `classType`: Partial match against class name (e.g., "SCULPT")
-- `location`: "sweat-lab" or "fusion-fitness"
-- `preferredSpots`: Array of spot numbers to try in order
+```json
+{
+  "schedules": [
+    {
+      "dayOfWeek": 2,        // 0=Sun, 1=Mon, ..., 6=Sat
+      "time": "05:30",       // 24h format, UTC
+      "classType": "SCULPT", // Partial match
+      "location": "sweat-lab",
+      "preferredSpots": ["8", "9", "6", "15"]
+    }
+  ],
+  "locations": {
+    "sweat-lab": { "id": "48718", "region": "48541" },
+    "fusion-fitness": { "id": "48717", "region": "48541" }
+  }
+}
+```
 
-## Key Files
+## Project Structure
 
-| File | Purpose |
-|------|---------|
-| `src/booking/booking.scheduler.ts` | Cron jobs for 12:00/12:01 PM booking |
-| `src/booking/booking.service.ts` | Core booking logic, class matching, spot selection |
-| `src/mariana/mariana.service.ts` | Marianatek API client |
-| `src/auth/auth.service.ts` | OAuth2 token management |
-| `config/schedule.json` | Class schedule configuration |
+```
+api/
+  book.ts          # Serverless function - all booking logic
+config/
+  schedule.json    # Class schedule configuration
+vercel.json        # Cron configuration
+```
 
-## Environment Variables
+## Environment Variables (Vercel Dashboard)
 
 | Variable | Description |
 |----------|-------------|
 | `MARIANA_CLIENT_ID` | Marianatek OAuth client ID |
-| `MARIANA_REFRESH_TOKEN` | OAuth refresh token for authentication |
-| `MEMBERSHIP_ID` | Sydney's membership ID for booking |
+| `MARIANA_REFRESH_TOKEN` | OAuth refresh token |
+| `MEMBERSHIP_ID` | Sydney's membership ID |
+
+## Deployment
+
+1. Push to GitHub
+2. Connect repo to Vercel
+3. Add environment variables in Vercel dashboard
+4. Deploy
+
+Cron jobs only run in production, not preview deployments.
+
+## Testing Locally
+
+```bash
+# Install Vercel CLI
+bun add -g vercel
+
+# Run locally (cron won't trigger, but you can hit /api/book manually)
+vercel dev
+```
+
+Then visit `http://localhost:3000/api/book` to trigger manually.
