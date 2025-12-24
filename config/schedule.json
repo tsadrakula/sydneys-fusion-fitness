@@ -1,0 +1,56 @@
+{
+  "schedules": [
+    {
+      "dayOfWeek": 2,
+      "time": "05:30",
+      "classType": "SCULPT",
+      "location": "sweat-lab",
+      "preferredSpots": ["8", "9", "6", "15"]
+    },
+    {
+      "dayOfWeek": 3,
+      "time": "05:30",
+      "classType": "STRENGTH + SWEAT",
+      "location": "sweat-lab",
+      "preferredSpots": ["8", "9", "6", "15"]
+    },
+    {
+      "dayOfWeek": 4,
+      "time": "07:00",
+      "classType": "SWEAT LAB",
+      "location": "sweat-lab",
+      "preferredSpots": ["8", "9", "6", "15"]
+    },
+    {
+      "dayOfWeek": 5,
+      "time": "07:00",
+      "classType": "SWEAT LAB",
+      "location": "sweat-lab",
+      "preferredSpots": ["8", "9", "6", "15"]
+    },
+    {
+      "dayOfWeek": 6,
+      "time": "08:00",
+      "classType": "SCULPT",
+      "location": "sweat-lab",
+      "preferredSpots": ["8", "9", "6", "15"]
+    },
+    {
+      "dayOfWeek": 7,
+      "time": "09:30",
+      "classType": "STRENGTH + SWEAT",
+      "location": "sweat-lab",
+      "preferredSpots": ["8", "9", "6", "15"]
+    }
+  ],
+  "locations": {
+    "sweat-lab": {
+      "id": "48718",
+      "region": "48541"
+    },
+    "fusion-fitness": {
+      "id": "48717",
+      "region": "48541"
+    }
+  }
+}
