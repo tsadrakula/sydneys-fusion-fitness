@@ -1,6 +1,6 @@
 {
   "name": "sydneys-fusion-fitness",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Auto-book fitness classes at Fusion Fitness / Sweat Lab (Vercel Serverless)",
   "private": true,
   "scripts": {
