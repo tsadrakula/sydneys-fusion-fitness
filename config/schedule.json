@@ -10,7 +10,7 @@
     {
       "dayOfWeek": 3,
       "time": "05:30",
-      "classType": "STRENGTH + SWEAT",
+      "classType": "SCULPT",
       "location": "sweat-lab",
       "preferredSpots": ["8", "9", "6", "15"]
     },
