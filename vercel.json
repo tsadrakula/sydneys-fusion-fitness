@@ -8,5 +8,7 @@
       "path": "/api/book",
       "schedule": "1 18 * * *"
     }
-  ]
+  ],
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "bunVersion": "1.x"
 }

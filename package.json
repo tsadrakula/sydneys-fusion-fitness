@@ -4,7 +4,8 @@
   "description": "Auto-book fitness classes at Fusion Fitness / Sweat Lab (Vercel Serverless)",
   "private": true,
   "scripts": {
-    "dev": "echo 'Run: bunx vercel dev'",
+    "dev": "bun run --bun next dev",
+    "build": "bun run --bun next build",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
