@@ -1,11 +1,11 @@
 {
   "name": "sydneys-fusion-fitness",
   "version": "2.0.1",
+  "type": "module",
   "description": "Auto-book fitness classes at Fusion Fitness / Sweat Lab (Vercel Serverless)",
   "private": true,
   "scripts": {
-    "dev": "bun run --bun next dev",
-    "build": "bun run --bun next build",
+    "dev": "vercel dev",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
