@@ -3,12 +3,38 @@
 Automatically books Sydney's preferred spots at Fusion Fitness / Sweat Lab classes.
 
 ## Tech Stack
-- **Platform:** Vercel Serverless Functions
+- **Framework:** Next.js 16 (App Router, Turbopack)
+- **UI:** React 19, Tailwind CSS v4, Motion (framer-motion)
+- **Platform:** Vercel (serverless functions + cron)
 - **Language:** TypeScript
+- **Package Manager:** Bun
 - **API:** Marianatek (Fusion Fitness booking platform)
+
+## Project Structure
+
+```
+src/
+  app/
+    page.tsx            # Dashboard - next class card, weekly schedule
+    layout.tsx          # Root layout with coral/cream theme
+    globals.css         # Tailwind v4 imports + custom properties
+    api/
+      settings/route.ts # GET/PUT schedule config
+    settings/
+      page.tsx          # Settings page - add/edit/delete classes
+  lib/
+    settings.ts         # Shared types, config read/write, helpers
+
+api/
+  book.ts               # Serverless function - all booking logic (Vercel function)
+
+config/
+  schedule.json         # Class schedule configuration
+```
 
 ## How It Works
 
+### Booking (api/book.ts)
 Vercel Cron triggers `/api/book` at **12:00 PM and 12:01 PM CST** daily.
 
 The function:
@@ -20,13 +46,17 @@ The function:
 6. Books best available spot from preferred list
 7. Falls back to waitlist if no preferred spots available
 
-## Cron Schedule
-
+### Cron Schedule
 Configured in `vercel.json`:
 - `0 18 * * *` (18:00 UTC = 12:00 PM CST)
 - `1 18 * * *` (18:01 UTC = 12:01 PM CST)
 
 **Note:** During daylight saving time (CDT), 12:00 PM = 17:00 UTC. Adjust cron if needed.
+
+### Settings UI
+- Dashboard (`/`) shows next upcoming class and weekly schedule
+- Settings (`/settings`) allows CRUD operations on schedule
+- API (`/api/settings`) validates and persists to `config/schedule.json`
 
 ## Schedule Configuration
 
@@ -37,10 +67,11 @@ Configured in `vercel.json`:
   "schedules": [
     {
       "dayOfWeek": 2,        // 0=Sun, 1=Mon, ..., 6=Sat
-      "time": "05:30",       // 24h format, UTC
+      "time": "05:30",       // 24h format, local time
       "classType": "SCULPT", // Partial match
       "location": "sweat-lab",
-      "preferredSpots": ["8", "9", "6", "15"]
+      "preferredSpots": ["8", "9", "6", "15"],
+      "instructor": "Erica"  // Optional filter
     }
   ],
   "locations": {
@@ -48,16 +79,6 @@ Configured in `vercel.json`:
     "fusion-fitness": { "id": "48717", "region": "48541" }
   }
 }
-```
-
-## Project Structure
-
-```
-api/
-  book.ts          # Serverless function - all booking logic
-config/
-  schedule.json    # Class schedule configuration
-vercel.json        # Cron configuration
 ```
 
 ## Environment Variables (Vercel Dashboard)
@@ -68,23 +89,48 @@ vercel.json        # Cron configuration
 | `MARIANA_REFRESH_TOKEN` | OAuth refresh token |
 | `MEMBERSHIP_ID` | Sydney's membership ID |
 
+## Commands
+
+```bash
+# Install dependencies
+bun install
+
+# Development server (Turbopack)
+bun dev
+
+# Production build
+bun run build
+
+# Start production server
+bun start
+
+# Lint
+bun lint
+```
+
 ## Deployment
 
-1. Push to GitHub
-2. Connect repo to Vercel
-3. Add environment variables in Vercel dashboard
-4. Deploy
+Push to `main` branch → Vercel auto-deploys.
 
 Cron jobs only run in production, not preview deployments.
 
 ## Testing Locally
 
 ```bash
-# Install Vercel CLI
-bun add -g vercel
+# Run Next.js dev server
+bun dev
 
-# Run locally (cron won't trigger, but you can hit /api/book manually)
+# For testing booking function locally
+bun add -g vercel
 vercel dev
 ```
 
-Then visit `http://localhost:3000/api/book` to trigger manually.
+Visit `http://localhost:3000` for dashboard, `http://localhost:3000/api/book` to trigger booking manually.
+
+## Design Notes
+
+- Color scheme: coral (#e8829a) / cream (#fef7f0)
+- Mobile-first responsive design
+- Bottom-sheet modal for add/edit on settings page
+- Class emoji: 💪 Sculpt, 🔥 S+S, 💧 Sweat Lab, 🌊 Drenched
+- Motion animations with spring physics for modals
