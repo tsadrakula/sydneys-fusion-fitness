@@ -23,10 +23,11 @@
     },
     {
       "dayOfWeek": 5,
-      "time": "07:00",
-      "classType": "SWEAT LAB",
-      "location": "sweat-lab",
-      "preferredSpots": ["8", "9", "6", "15"]
+      "time": "06:20",
+      "classType": "DRENCHED",
+      "location": "fusion-fitness",
+      "preferredSpots": ["18", "8", "9", "6", "15"],
+      "instructor": "Erica"
     },
     {
       "dayOfWeek": 6,
@@ -36,11 +37,11 @@
       "preferredSpots": ["8", "9", "6", "15"]
     },
     {
-      "dayOfWeek": 7,
+      "dayOfWeek": 0,
       "time": "09:30",
       "classType": "STRENGTH + SWEAT",
       "location": "sweat-lab",
-      "preferredSpots": ["8", "9", "6", "15"]
+      "preferredSpots": ["8", "9", "1"]
     }
   ],
   "locations": {

@@ -11,6 +11,7 @@ interface ScheduleEntry {
   classType: string;
   location: 'sweat-lab' | 'fusion-fitness';
   preferredSpots: string[];
+  instructor?: string;
 }
 
 interface LocationConfig {
@@ -330,7 +331,20 @@ async function bookClass(logs: string[]): Promise<{ booked: boolean; waitlisted:
     const classTime = extractTime(c.start_datetime);
     const classTypeName = c.class_type.name.toLowerCase();
     const targetType = scheduleEntry.classType.toLowerCase();
-    return classTime === scheduleEntry.time && classTypeName.includes(targetType);
+    const timeAndTypeMatch = classTime === scheduleEntry.time && classTypeName.includes(targetType);
+
+    // If instructor is specified, also match on instructor name
+    if (timeAndTypeMatch && scheduleEntry.instructor) {
+      const hasInstructor = c.instructors.some(
+        (i) => i.name.toLowerCase().includes(scheduleEntry.instructor!.toLowerCase())
+      );
+      if (!hasInstructor) {
+        logs.push(`Skipping class (instructor mismatch: ${c.instructors.map(i => i.name).join(', ')} ≠ ${scheduleEntry.instructor})`);
+        return false;
+      }
+    }
+
+    return timeAndTypeMatch;
   });
 
   if (!matchingClass) {
