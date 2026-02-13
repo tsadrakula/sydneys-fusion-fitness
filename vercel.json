@@ -9,6 +9,9 @@
       "schedule": "1 18 * * *"
     }
   ],
+  "rewrites": [
+    { "source": "/settings", "destination": "/settings.html" }
+  ],
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "bunVersion": "1.x"
 }
