@@ -1,8 +1,11 @@
-# dependencies (bun install)
+# dependencies
 node_modules
 
+# next.js
+/.next/
+/out/
+
 # output
-out
 dist
 *.tgz
 
@@ -12,8 +15,8 @@ coverage
 
 # logs
 logs
-_.log
-report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
+*.log
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 # dotenv environment variable files
 .env
@@ -26,6 +29,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .eslintcache
 .cache
 *.tsbuildinfo
+next-env.d.ts
 
 # IntelliJ based IDEs
 .idea

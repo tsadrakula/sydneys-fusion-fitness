@@ -1,17 +1,12 @@
 {
   "crons": [
     {
-      "path": "/api/book",
+      "path": "/api/book?action=book",
       "schedule": "0 18 * * *"
     },
     {
-      "path": "/api/book",
+      "path": "/api/book?action=waitlist",
       "schedule": "1 18 * * *"
     }
-  ],
-  "rewrites": [
-    { "source": "/settings", "destination": "/settings.html" }
-  ],
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "bunVersion": "1.x"
+  ]
 }
