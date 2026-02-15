@@ -1,28 +1,9 @@
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { getScheduleConfig } from '@/lib/settings';
+import type { ScheduleEntry } from '@/lib/settings';
 
 // =============================================================================
 // Types
 // =============================================================================
-
-interface ScheduleEntry {
-  dayOfWeek: number;
-  time: string;
-  classType: string;
-  location: 'sweat-lab' | 'fusion-fitness';
-  preferredSpots: string[];
-  instructor?: string;
-}
-
-interface LocationConfig {
-  id: string;
-  region: string;
-}
-
-interface ScheduleConfig {
-  schedules: ScheduleEntry[];
-  locations: Record<string, LocationConfig>;
-}
 
 interface TokenResponse {
   access_token: string;
@@ -71,16 +52,6 @@ interface MarianaClassesResponse {
 
 const BASE_URL = 'https://fusionfitness.marianatek.com/api/customer/v1';
 const TOKEN_URL = 'https://fusionfitness.marianatek.com/o/token/';
-
-// =============================================================================
-// Config
-// =============================================================================
-
-function loadScheduleConfig(): ScheduleConfig {
-  const configPath = join(process.cwd(), 'config', 'schedule.json');
-  const rawConfig = readFileSync(configPath, 'utf-8');
-  return JSON.parse(rawConfig) as ScheduleConfig;
-}
 
 // =============================================================================
 // Auth
@@ -288,7 +259,7 @@ function getDayName(dayOfWeek: number): string {
 }
 
 async function bookClass(logs: string[]): Promise<{ booked: boolean; waitlisted: boolean }> {
-  const config = loadScheduleConfig();
+  const config = getScheduleConfig();
   const membershipId = process.env.MEMBERSHIP_ID!;
 
   // Calculate target date (14 days out in Chicago timezone)
@@ -299,7 +270,7 @@ async function bookClass(logs: string[]): Promise<{ booked: boolean; waitlisted:
   logs.push(`Target date: ${target.date} (${getDayName(target.dayOfWeek)})`);
 
   // Find schedule entry for target day
-  const scheduleEntry = config.schedules.find((s) => s.dayOfWeek === target.dayOfWeek);
+  const scheduleEntry = config.schedules.find((s: ScheduleEntry) => s.dayOfWeek === target.dayOfWeek);
 
   if (!scheduleEntry) {
     logs.push(`No class scheduled for ${getDayName(target.dayOfWeek)}, skipping`);
@@ -410,7 +381,7 @@ async function bookClass(logs: string[]): Promise<{ booked: boolean; waitlisted:
 }
 
 // =============================================================================
-// Vercel Handler (Web API standard)
+// Next.js App Router Handler
 // =============================================================================
 
 export async function GET() {
