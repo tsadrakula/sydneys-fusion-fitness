@@ -1,7 +1,3 @@
-<<<<<<<< HEAD:src/app/api/book/route.ts
-import { getScheduleConfig } from '@/lib/settings';
-import type { ScheduleEntry } from '@/lib/settings';
-========
 import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import cron from 'node-cron';
@@ -13,11 +9,29 @@ import cron from 'node-cron';
 const PORT = Number(process.env.PORT || 3001);
 const CONFIG_PATH = join(import.meta.dir, '..', 'config', 'schedule.json');
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS?.split(',') || ['*'];
->>>>>>>> b52dc9a (feat: move booking cron to local Bun server with Cloudflare Tunnel):server/index.ts
 
 // =============================================================================
 // Types
 // =============================================================================
+
+interface ScheduleEntry {
+  dayOfWeek: number;
+  time: string;
+  classType: string;
+  location: 'sweat-lab' | 'fusion-fitness';
+  preferredSpots: string[];
+  instructor?: string;
+}
+
+interface LocationConfig {
+  id: string;
+  region: string;
+}
+
+interface ScheduleConfig {
+  schedules: ScheduleEntry[];
+  locations: Record<string, LocationConfig>;
+}
 
 interface TokenResponse {
   access_token: string;
@@ -120,13 +134,6 @@ function saveScheduleConfig(config: ScheduleConfig): void {
 const BASE_URL = 'https://fusionfitness.marianatek.com/api/customer/v1';
 const TOKEN_URL = 'https://fusionfitness.marianatek.com/o/token/';
 
-<<<<<<<< HEAD:src/app/api/book/route.ts
-// =============================================================================
-// Auth
-// =============================================================================
-
-========
->>>>>>>> b52dc9a (feat: move booking cron to local Bun server with Cloudflare Tunnel):server/index.ts
 async function getAccessToken(): Promise<string> {
   const clientId = process.env.MARIANA_CLIENT_ID!;
   const refreshToken = process.env.MARIANA_REFRESH_TOKEN!;
@@ -317,16 +324,11 @@ function getDayName(dayOfWeek: number): string {
   return days[dayOfWeek] || 'Unknown';
 }
 
-<<<<<<<< HEAD:src/app/api/book/route.ts
-async function bookClass(logs: string[]): Promise<{ booked: boolean; waitlisted: boolean }> {
-  const config = getScheduleConfig();
-========
 async function bookClass(
   logs: string[],
   action: 'book' | 'waitlist' = 'book',
 ): Promise<{ booked: boolean; waitlisted: boolean }> {
   const config = loadScheduleConfig();
->>>>>>>> b52dc9a (feat: move booking cron to local Bun server with Cloudflare Tunnel):server/index.ts
   const membershipId = process.env.MEMBERSHIP_ID!;
 
   const today = getChicagoDate();
@@ -335,12 +337,7 @@ async function bookClass(
   logs.push(`Today (Chicago): ${today.date}`);
   logs.push(`Target date: ${target.date} (${getDayName(target.dayOfWeek)})`);
 
-<<<<<<<< HEAD:src/app/api/book/route.ts
-  // Find schedule entry for target day
-  const scheduleEntry = config.schedules.find((s: ScheduleEntry) => s.dayOfWeek === target.dayOfWeek);
-========
   const scheduleEntry = config.schedules.find((s) => s.dayOfWeek === target.dayOfWeek);
->>>>>>>> b52dc9a (feat: move booking cron to local Bun server with Cloudflare Tunnel):server/index.ts
 
   if (!scheduleEntry) {
     logs.push(`No class scheduled for ${getDayName(target.dayOfWeek)}, skipping`);
@@ -453,11 +450,7 @@ async function bookClass(
 }
 
 // =============================================================================
-<<<<<<<< HEAD:src/app/api/book/route.ts
-// Next.js App Router Handler
-========
 // Cron trigger helper
->>>>>>>> b52dc9a (feat: move booking cron to local Bun server with Cloudflare Tunnel):server/index.ts
 // =============================================================================
 
 async function runBooking(action: 'book' | 'waitlist') {
