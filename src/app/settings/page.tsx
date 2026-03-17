@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import * as motion from 'motion/react-client';
 import { AnimatePresence } from 'motion/react';
+import { API_URL } from '@/lib/api';
 
 interface ScheduleEntry {
   dayOfWeek: number;
@@ -55,7 +56,7 @@ export default function SettingsPage() {
 
   const fetchConfig = useCallback(async () => {
     try {
-      const r = await fetch('/api/settings');
+      const r = await fetch(`${API_URL}/api/settings`);
       const data = await r.json();
       setConfig(data);
     } catch {
@@ -111,7 +112,7 @@ export default function SettingsPage() {
 
     const newConfig = { ...config, schedules: newSchedules };
     try {
-      await fetch('/api/settings', {
+      await fetch(`${API_URL}/api/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newConfig),
@@ -129,7 +130,7 @@ export default function SettingsPage() {
     const newSchedules = config.schedules.filter((_, i) => i !== idx);
     const newConfig = { ...config, schedules: newSchedules };
     try {
-      await fetch('/api/settings', {
+      await fetch(`${API_URL}/api/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newConfig),

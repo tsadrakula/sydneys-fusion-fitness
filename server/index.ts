@@ -1,5 +1,14 @@
-import { readFileSync } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
+import cron from 'node-cron';
+
+// =============================================================================
+// Config
+// =============================================================================
+
+const PORT = Number(process.env.PORT || 3001);
+const CONFIG_PATH = join(import.meta.dir, '..', 'config', 'schedule.json');
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS?.split(',') || ['*'];
 
 // =============================================================================
 // Types
@@ -66,25 +75,64 @@ interface MarianaClassesResponse {
 }
 
 // =============================================================================
-// Constants
+// CORS
+// =============================================================================
+
+function corsHeaders(origin?: string | null): Record<string, string> {
+  const allowedOrigin =
+    ALLOWED_ORIGINS.includes('*')
+      ? '*'
+      : ALLOWED_ORIGINS.find((o) => o === origin) || ALLOWED_ORIGINS[0];
+
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Methods': 'GET, PUT, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
+}
+
+// =============================================================================
+// Schedule Config (local JSON)
+// =============================================================================
+
+function loadScheduleConfig(): ScheduleConfig {
+  const data = readFileSync(CONFIG_PATH, 'utf-8');
+  return JSON.parse(data) as ScheduleConfig;
+}
+
+function saveScheduleConfig(config: ScheduleConfig): void {
+  if (!config || !Array.isArray(config.schedules)) {
+    throw new Error('schedules must be an array');
+  }
+  if (!config.locations || typeof config.locations !== 'object') {
+    throw new Error('locations must be an object');
+  }
+  for (const entry of config.schedules) {
+    if (typeof entry.dayOfWeek !== 'number' || entry.dayOfWeek < 0 || entry.dayOfWeek > 6) {
+      throw new Error('Invalid dayOfWeek (must be 0-6)');
+    }
+    if (!entry.time || typeof entry.time !== 'string') {
+      throw new Error('Invalid time');
+    }
+    if (!entry.classType || typeof entry.classType !== 'string') {
+      throw new Error('Invalid classType');
+    }
+    if (!entry.location || typeof entry.location !== 'string') {
+      throw new Error('Invalid location');
+    }
+    if (!Array.isArray(entry.preferredSpots)) {
+      throw new Error('preferredSpots must be an array');
+    }
+  }
+  writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+}
+
+// =============================================================================
+// Marianatek Auth
 // =============================================================================
 
 const BASE_URL = 'https://fusionfitness.marianatek.com/api/customer/v1';
 const TOKEN_URL = 'https://fusionfitness.marianatek.com/o/token/';
-
-// =============================================================================
-// Config
-// =============================================================================
-
-function loadScheduleConfig(): ScheduleConfig {
-  const configPath = join(process.cwd(), 'config', 'schedule.json');
-  const rawConfig = readFileSync(configPath, 'utf-8');
-  return JSON.parse(rawConfig) as ScheduleConfig;
-}
-
-// =============================================================================
-// Auth
-// =============================================================================
 
 async function getAccessToken(): Promise<string> {
   const clientId = process.env.MARIANA_CLIENT_ID!;
@@ -119,7 +167,7 @@ async function apiRequest<T>(
   token: string,
   method: 'GET' | 'POST',
   path: string,
-  body?: object
+  body?: object,
 ): Promise<T> {
   const url = `${BASE_URL}${path}`;
   const options: RequestInit = {
@@ -148,7 +196,7 @@ async function getClasses(
   token: string,
   date: string,
   locationId: string,
-  regionId: string
+  regionId: string,
 ): Promise<MarianaClass[]> {
   const params = new URLSearchParams({
     min_start_date: date,
@@ -161,7 +209,7 @@ async function getClasses(
   const response = await apiRequest<MarianaClassesResponse>(
     token,
     'GET',
-    `/classes?${params.toString()}`
+    `/classes?${params.toString()}`,
   );
 
   return response.results;
@@ -175,7 +223,7 @@ async function bookSpot(
   token: string,
   classId: string,
   spotId: string,
-  membershipId: string
+  membershipId: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
     await apiRequest(token, 'POST', '/me/reservations', {
@@ -194,7 +242,7 @@ async function bookSpot(
 async function joinWaitlist(
   token: string,
   classId: string,
-  membershipId: string
+  membershipId: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
     await apiRequest(token, 'POST', '/me/reservations', {
@@ -215,8 +263,6 @@ async function joinWaitlist(
 
 function getChicagoDate(): { date: string; dayOfWeek: number } {
   const now = new Date();
-
-  // Get Chicago date components
   const chicagoFormatter = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/Chicago',
     year: 'numeric',
@@ -226,23 +272,20 @@ function getChicagoDate(): { date: string; dayOfWeek: number } {
   });
 
   const parts = chicagoFormatter.formatToParts(now);
-  const year = parts.find(p => p.type === 'year')!.value;
-  const month = parts.find(p => p.type === 'month')!.value;
-  const day = parts.find(p => p.type === 'day')!.value;
-  const weekday = parts.find(p => p.type === 'weekday')!.value;
+  const year = parts.find((p) => p.type === 'year')!.value;
+  const month = parts.find((p) => p.type === 'month')!.value;
+  const day = parts.find((p) => p.type === 'day')!.value;
+  const weekday = parts.find((p) => p.type === 'weekday')!.value;
 
   const dayMap: Record<string, number> = {
-    'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
+    Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
   };
 
-  return {
-    date: `${year}-${month}-${day}`,
-    dayOfWeek: dayMap[weekday]!,
-  };
+  return { date: `${year}-${month}-${day}`, dayOfWeek: dayMap[weekday]! };
 }
 
 function addDays(dateStr: string, days: number): { date: string; dayOfWeek: number } {
-  const date = new Date(dateStr + 'T12:00:00-06:00'); // Parse as Chicago noon
+  const date = new Date(dateStr + 'T12:00:00-06:00');
   date.setDate(date.getDate() + days);
 
   const chicagoFormatter = new Intl.DateTimeFormat('en-US', {
@@ -254,32 +297,26 @@ function addDays(dateStr: string, days: number): { date: string; dayOfWeek: numb
   });
 
   const parts = chicagoFormatter.formatToParts(date);
-  const year = parts.find(p => p.type === 'year')!.value;
-  const month = parts.find(p => p.type === 'month')!.value;
-  const day = parts.find(p => p.type === 'day')!.value;
-  const weekday = parts.find(p => p.type === 'weekday')!.value;
+  const year = parts.find((p) => p.type === 'year')!.value;
+  const month = parts.find((p) => p.type === 'month')!.value;
+  const day = parts.find((p) => p.type === 'day')!.value;
+  const weekday = parts.find((p) => p.type === 'weekday')!.value;
 
   const dayMap: Record<string, number> = {
-    'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
+    Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
   };
 
-  return {
-    date: `${year}-${month}-${day}`,
-    dayOfWeek: dayMap[weekday]!,
-  };
+  return { date: `${year}-${month}-${day}`, dayOfWeek: dayMap[weekday]! };
 }
 
 function extractTime(isoDatetime: string): string {
-  // Convert to America/Chicago timezone (CST/CDT)
   const date = new Date(isoDatetime);
-  const chicagoTime = date.toLocaleString('en-US', {
+  return date.toLocaleString('en-US', {
     timeZone: 'America/Chicago',
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
   });
-  // toLocaleString returns "HH:MM", extract just the time
-  return chicagoTime;
 }
 
 function getDayName(dayOfWeek: number): string {
@@ -287,18 +324,19 @@ function getDayName(dayOfWeek: number): string {
   return days[dayOfWeek] || 'Unknown';
 }
 
-async function bookClass(logs: string[]): Promise<{ booked: boolean; waitlisted: boolean }> {
+async function bookClass(
+  logs: string[],
+  action: 'book' | 'waitlist' = 'book',
+): Promise<{ booked: boolean; waitlisted: boolean }> {
   const config = loadScheduleConfig();
   const membershipId = process.env.MEMBERSHIP_ID!;
 
-  // Calculate target date (14 days out in Chicago timezone)
   const today = getChicagoDate();
   const target = addDays(today.date, 14);
 
   logs.push(`Today (Chicago): ${today.date}`);
   logs.push(`Target date: ${target.date} (${getDayName(target.dayOfWeek)})`);
 
-  // Find schedule entry for target day
   const scheduleEntry = config.schedules.find((s) => s.dayOfWeek === target.dayOfWeek);
 
   if (!scheduleEntry) {
@@ -308,24 +346,20 @@ async function bookClass(logs: string[]): Promise<{ booked: boolean; waitlisted:
 
   logs.push(`Looking for: ${scheduleEntry.classType} @ ${scheduleEntry.time} at ${scheduleEntry.location}`);
 
-  // Get access token
   logs.push('Fetching access token...');
   const token = await getAccessToken();
   logs.push('Token acquired');
 
-  // Get location config
   const location = config.locations[scheduleEntry.location];
   if (!location) {
     logs.push(`Unknown location: ${scheduleEntry.location}`);
     return { booked: false, waitlisted: false };
   }
 
-  // Fetch classes for target date
   logs.push('Fetching classes...');
   const classes = await getClasses(token, target.date, location.id, location.region);
   logs.push(`Found ${classes.length} classes`);
 
-  // Find matching class
   const matchingClass = classes.find((c) => {
     if (c.is_cancelled) return false;
     const classTime = extractTime(c.start_datetime);
@@ -333,13 +367,14 @@ async function bookClass(logs: string[]): Promise<{ booked: boolean; waitlisted:
     const targetType = scheduleEntry.classType.toLowerCase();
     const timeAndTypeMatch = classTime === scheduleEntry.time && classTypeName.includes(targetType);
 
-    // If instructor is specified, also match on instructor name
     if (timeAndTypeMatch && scheduleEntry.instructor) {
-      const hasInstructor = c.instructors.some(
-        (i) => i.name.toLowerCase().includes(scheduleEntry.instructor!.toLowerCase())
+      const hasInstructor = c.instructors.some((i) =>
+        i.name.toLowerCase().includes(scheduleEntry.instructor!.toLowerCase()),
       );
       if (!hasInstructor) {
-        logs.push(`Skipping class (instructor mismatch: ${c.instructors.map(i => i.name).join(', ')} ≠ ${scheduleEntry.instructor})`);
+        logs.push(
+          `Skipping class (instructor mismatch: ${c.instructors.map((i) => i.name).join(', ')} ≠ ${scheduleEntry.instructor})`,
+        );
         return false;
       }
     }
@@ -355,20 +390,29 @@ async function bookClass(logs: string[]): Promise<{ booked: boolean; waitlisted:
   const instructor = matchingClass.instructors[0]?.name || 'Unknown';
   logs.push(`Found class: ${matchingClass.class_type.name} with ${instructor} (ID: ${matchingClass.id})`);
 
-  // Check layout format
+  // Waitlist-only mode (second cron run)
+  if (action === 'waitlist') {
+    logs.push('Waitlist mode - joining waitlist directly');
+    const result = await joinWaitlist(token, matchingClass.id, membershipId);
+    if (result.success) {
+      logs.push('Joined waitlist successfully');
+      return { booked: false, waitlisted: true };
+    }
+    logs.push(`Waitlist failed: ${result.error}`);
+    return { booked: false, waitlisted: false };
+  }
+
   if (matchingClass.layout_format !== 'pick-a-spot') {
     logs.push(`Class is ${matchingClass.layout_format}, not pick-a-spot - joining waitlist`);
     const result = await joinWaitlist(token, matchingClass.id, membershipId);
     if (result.success) {
       logs.push('Joined waitlist successfully');
       return { booked: false, waitlisted: true };
-    } else {
-      logs.push(`Waitlist failed: ${result.error}`);
-      return { booked: false, waitlisted: false };
     }
+    logs.push(`Waitlist failed: ${result.error}`);
+    return { booked: false, waitlisted: false };
   }
 
-  // Get class layout with spots
   logs.push('Fetching spot layout...');
   const classWithLayout = await getClassWithLayout(token, matchingClass.id);
 
@@ -380,7 +424,6 @@ async function bookClass(logs: string[]): Promise<{ booked: boolean; waitlisted:
   const spots = classWithLayout.layout.spots;
   logs.push(`Found ${spots.length} spots, ${spots.filter((s) => s.is_available).length} available`);
 
-  // Find best available spot from preferred list
   for (const preferredSpot of scheduleEntry.preferredSpots) {
     const spot = spots.find((s) => s.name === preferredSpot && s.is_available);
     if (spot) {
@@ -390,59 +433,150 @@ async function bookClass(logs: string[]): Promise<{ booked: boolean; waitlisted:
       if (result.success) {
         logs.push(`SUCCESS! Booked spot ${spot.name}`);
         return { booked: true, waitlisted: false };
-      } else {
-        logs.push(`Failed to book spot ${spot.name}: ${result.error}`);
       }
+      logs.push(`Failed to book spot ${spot.name}: ${result.error}`);
     }
   }
 
-  // No preferred spots available, try waitlist
   logs.push('No preferred spots available, joining waitlist...');
   const waitlistResult = await joinWaitlist(token, matchingClass.id, membershipId);
 
   if (waitlistResult.success) {
     logs.push('Joined waitlist successfully');
     return { booked: false, waitlisted: true };
-  } else {
-    logs.push(`Waitlist failed: ${waitlistResult.error}`);
-    return { booked: false, waitlisted: false };
   }
+  logs.push(`Waitlist failed: ${waitlistResult.error}`);
+  return { booked: false, waitlisted: false };
 }
 
 // =============================================================================
-// Vercel Handler (Web API standard)
+// Cron trigger helper
 // =============================================================================
 
-export async function GET() {
+async function runBooking(action: 'book' | 'waitlist') {
   const logs: string[] = [];
   const startTime = Date.now();
+  const timestamp = new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' });
 
-  logs.push(`Booking triggered at ${new Date().toISOString()}`);
+  logs.push(`[CRON] ${action} triggered at ${timestamp}`);
+  console.log(`\n${'='.repeat(60)}`);
+  console.log(`[CRON] ${action.toUpperCase()} triggered at ${timestamp}`);
 
   try {
-    const result = await bookClass(logs);
+    const result = await bookClass(logs, action);
     const duration = Date.now() - startTime;
-
     logs.push(`Completed in ${duration}ms`);
 
-    return Response.json({
-      success: true,
-      booked: result.booked,
-      waitlisted: result.waitlisted,
-      logs,
-    });
+    for (const log of logs) console.log(`  ${log}`);
+    console.log(`  Result: booked=${result.booked}, waitlisted=${result.waitlisted}`);
   } catch (error) {
     logs.push(`ERROR: ${error}`);
-    const duration = Date.now() - startTime;
-    logs.push(`Failed after ${duration}ms`);
-
-    return Response.json(
-      {
-        success: false,
-        error: String(error),
-        logs,
-      },
-      { status: 500 }
-    );
+    for (const log of logs) console.log(`  ${log}`);
   }
+  console.log('='.repeat(60));
 }
+
+// =============================================================================
+// Cron Jobs - 12:00 PM and 12:01 PM Chicago time
+// =============================================================================
+
+cron.schedule('0 12 * * *', () => runBooking('book'), {
+  timezone: 'America/Chicago',
+});
+
+cron.schedule('1 12 * * *', () => runBooking('waitlist'), {
+  timezone: 'America/Chicago',
+});
+
+console.log('Cron jobs scheduled:');
+console.log('  - Book:     12:00 PM Chicago time daily');
+console.log('  - Waitlist: 12:01 PM Chicago time daily');
+
+// =============================================================================
+// HTTP Server
+// =============================================================================
+
+function json(data: unknown, status = 200, origin?: string | null) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      'Content-Type': 'application/json',
+      ...corsHeaders(origin),
+    },
+  });
+}
+
+Bun.serve({
+  port: PORT,
+  async fetch(req) {
+    const url = new URL(req.url);
+    const origin = req.headers.get('origin');
+
+    // CORS preflight
+    if (req.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: corsHeaders(origin) });
+    }
+
+    // ── /api/settings ──
+    if (url.pathname === '/api/settings') {
+      if (req.method === 'GET') {
+        try {
+          const config = loadScheduleConfig();
+          return json(config, 200, origin);
+        } catch (error) {
+          return json({ error: String(error) }, 500, origin);
+        }
+      }
+
+      if (req.method === 'PUT') {
+        try {
+          const body = await req.json();
+          saveScheduleConfig(body);
+          return json({ success: true }, 200, origin);
+        } catch (error) {
+          const msg = String(error);
+          const status = msg.includes('Invalid') || msg.includes('must be') ? 400 : 500;
+          return json({ error: msg }, status, origin);
+        }
+      }
+    }
+
+    // ── /api/book ──
+    if (url.pathname === '/api/book') {
+      const action = (url.searchParams.get('action') as 'book' | 'waitlist') || 'book';
+      const logs: string[] = [];
+      const startTime = Date.now();
+
+      logs.push(`Booking triggered at ${new Date().toISOString()}`);
+
+      try {
+        const result = await bookClass(logs, action);
+        const duration = Date.now() - startTime;
+        logs.push(`Completed in ${duration}ms`);
+
+        return json({ success: true, booked: result.booked, waitlisted: result.waitlisted, logs }, 200, origin);
+      } catch (error) {
+        logs.push(`ERROR: ${error}`);
+        const duration = Date.now() - startTime;
+        logs.push(`Failed after ${duration}ms`);
+
+        return json({ success: false, error: String(error), logs }, 500, origin);
+      }
+    }
+
+    // ── Health check ──
+    if (url.pathname === '/health') {
+      return json({ status: 'ok', uptime: process.uptime() }, 200, origin);
+    }
+
+    return json({ error: 'Not found' }, 404, origin);
+  },
+});
+
+console.log(`\nServer running on http://localhost:${PORT}`);
+console.log('Endpoints:');
+console.log(`  GET  http://localhost:${PORT}/api/settings`);
+console.log(`  PUT  http://localhost:${PORT}/api/settings`);
+console.log(`  GET  http://localhost:${PORT}/api/book`);
+console.log(`  GET  http://localhost:${PORT}/api/book?action=waitlist`);
+console.log(`  GET  http://localhost:${PORT}/health`);
