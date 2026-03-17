@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import * as motion from 'motion/react-client';
 import type { ScheduleConfig, ScheduleEntry } from '@/lib/settings';
+import { API_URL } from '@/lib/api';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const LOCATIONS: Record<string, string> = { 'fusion-fitness': 'Fusion Fitness', 'sweat-lab': 'Sweat Lab' };
@@ -58,7 +59,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/settings')
+    fetch(`${API_URL}/api/settings`)
       .then(r => r.json())
       .then(data => { setConfig(data); setLoading(false); })
       .catch(() => setLoading(false));

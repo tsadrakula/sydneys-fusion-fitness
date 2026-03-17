@@ -1,12 +1,1 @@
-{
-  "crons": [
-    {
-      "path": "/api/book?action=book",
-      "schedule": "0 18 * * *"
-    },
-    {
-      "path": "/api/book?action=waitlist",
-      "schedule": "1 18 * * *"
-    }
-  ]
-}
+{}
